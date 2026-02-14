@@ -24,6 +24,7 @@ const StudentDashboard = () => {
   };
 
   const handleLogout = () => {
+    toast.dismiss();
     toast.success("Logged out successfully");
     navigate("/");
   };
