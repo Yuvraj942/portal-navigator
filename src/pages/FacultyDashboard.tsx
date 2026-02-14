@@ -22,13 +22,13 @@ const FacultyDashboard = () => {
   const pending = assigned - graded;
 
   const handleEvaluate = (roll: string, subject: string) => {
-    toast.loading(`Opening evaluation for Roll ${roll} — ${subject}...`, {
+    toast.info(`Opening evaluation for Roll ${roll} — ${subject}...`, {
       duration: 2000,
     });
   };
 
   const handleBulkUpload = () => {
-    toast.loading("Preparing bulk upload interface...", { duration: 2000 });
+    toast.info("Preparing bulk upload interface...", { duration: 2000 });
   };
 
   const handleLogout = () => {

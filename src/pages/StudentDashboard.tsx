@@ -18,7 +18,7 @@ const StudentDashboard = () => {
   const selected = SUBJECTS.find((s) => s.code === selectedSubject)!;
 
   const handleAction = (action: string) => {
-    toast.loading(`Loading ${action} for ${selected.name}...`, {
+    toast.info(`Loading ${action} for ${selected.name}...`, {
       duration: 2000,
     });
   };
