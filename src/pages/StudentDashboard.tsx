@@ -48,7 +48,7 @@ const StudentDashboard = () => {
 
       {/* Main Content */}
       <main className="p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 max-w-6xl mx-auto">
           {/* Left: Resource Panel */}
           <div className="space-y-4">
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
