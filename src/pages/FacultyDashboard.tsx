@@ -32,6 +32,7 @@ const FacultyDashboard = () => {
   };
 
   const handleLogout = () => {
+    toast.dismiss();
     toast.success("Logged out successfully");
     navigate("/");
   };
