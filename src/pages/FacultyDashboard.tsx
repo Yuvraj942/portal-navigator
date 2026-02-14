@@ -46,9 +46,9 @@ const FacultyDashboard = () => {
   };
 
   const stats = [
-    { label: "Scripts Assigned", value: assigned, color: "text-primary" },
-    { label: "Graded", value: graded, color: "text-success" },
-    { label: "Pending", value: pending, color: "text-warning" },
+    { label: "Scripts Assigned", value: assigned, color: "text-primary", icon: "📋" },
+    { label: "Graded", value: graded, color: "text-success", icon: "✅" },
+    { label: "Pending", value: pending, color: "text-warning", icon: "⏳" },
   ];
 
   return (
@@ -75,7 +75,10 @@ const FacultyDashboard = () => {
               key={stat.label}
               className="rounded-xl border border-border bg-card p-5 flex items-center justify-between"
             >
-              <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
+              <div className="flex items-center gap-3">
+                <span className="text-lg">{stat.icon}</span>
+                <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
+              </div>
               <span className={`text-2xl font-bold font-mono ${stat.color}`}>{stat.value}</span>
             </div>
           ))}
