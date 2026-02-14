@@ -79,6 +79,12 @@ const StudentDashboard = () => {
               >
                 View Evaluated Answer Sheet
               </button>
+
+              <div className="pt-2 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  Selected: <span className="font-mono text-primary">{selected.code}</span> — {selected.name}
+                </p>
+              </div>
             </div>
           </div>
 
