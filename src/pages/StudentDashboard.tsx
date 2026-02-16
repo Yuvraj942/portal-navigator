@@ -3,19 +3,40 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const SUBJECTS = [
-  { code: "CS3001", name: "Data Structures & Algorithms", marks: 87 },
-  { code: "CS3002", name: "Operating Systems", marks: 72 },
-  { code: "CS3003", name: "Database Management Systems", marks: 91 },
-  { code: "CS3004", name: "Computer Networks", marks: 68 },
-  { code: "CS3005", name: "Software Engineering", marks: 79 },
-  { code: "MA2001", name: "Discrete Mathematics", marks: 85 },
+  { code: "CS3001", name: "Data Structures & Algorithms", marks: 87, status: "graded" as const },
+  { code: "CS3002", name: "Operating Systems", marks: 72, status: "review" as const },
+  { code: "CS3003", name: "Database Management Systems", marks: 91, status: "updated" as const },
+  { code: "CS3004", name: "Computer Networks", marks: 68, status: "graded" as const },
+  { code: "CS3005", name: "Software Engineering", marks: 79, status: "graded" as const },
+  { code: "MA2001", name: "Discrete Mathematics", marks: 85, status: "graded" as const },
 ];
+
+type Status = "graded" | "review" | "updated";
+
+const statusConfig: Record<Status, { label: string; className: string }> = {
+  graded: {
+    label: "Graded",
+    className: "bg-success/10 text-success",
+  },
+  review: {
+    label: "Review Pending",
+    className: "bg-warning/10 text-warning",
+  },
+  updated: {
+    label: "Updated",
+    className: "bg-primary/10 text-primary",
+  },
+};
 
 const StudentDashboard = () => {
   const [selectedSubject, setSelectedSubject] = useState(SUBJECTS[0].code);
   const navigate = useNavigate();
 
   const selected = SUBJECTS.find((s) => s.code === selectedSubject)!;
+
+  const handleViewAnswerSheet = () => {
+    navigate(`/evaluation/${selected.code.toLowerCase()}?role=student`);
+  };
 
   const handleAction = (action: string) => {
     toast.info(`Loading ${action} for ${selected.name}...`, {
@@ -75,7 +96,7 @@ const StudentDashboard = () => {
               </div>
 
               <button
-                onClick={() => handleAction("Evaluated Answer Sheet")}
+                onClick={handleViewAnswerSheet}
                 className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 View Evaluated Answer Sheet
@@ -110,25 +131,38 @@ const StudentDashboard = () => {
                       <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Marks
                       </th>
+                      <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Status
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {SUBJECTS.map((s, i) => (
-                      <tr
-                        key={s.code}
-                        className={`border-b border-border last:border-0 ${
-                          i % 2 === 1 ? "bg-muted/30" : ""
-                        }`}
-                      >
-                        <td className="px-5 py-3 font-mono text-sm font-medium text-primary">
-                          {s.code}
-                        </td>
-                        <td className="px-5 py-3 text-foreground">{s.name}</td>
-                        <td className="px-5 py-3 text-right font-mono font-semibold text-foreground">
-                          {s.marks}
-                        </td>
-                      </tr>
-                    ))}
+                    {SUBJECTS.map((s, i) => {
+                      const cfg = statusConfig[s.status];
+                      return (
+                        <tr
+                          key={s.code}
+                          className={`border-b border-border last:border-0 ${
+                            i % 2 === 1 ? "bg-muted/30" : ""
+                          }`}
+                        >
+                          <td className="px-5 py-3 font-mono text-sm font-medium text-primary">
+                            {s.code}
+                          </td>
+                          <td className="px-5 py-3 text-foreground">{s.name}</td>
+                          <td className="px-5 py-3 text-right font-mono font-semibold text-foreground">
+                            {s.marks}
+                          </td>
+                          <td className="px-5 py-3 text-center">
+                            <span
+                              className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ${cfg.className}`}
+                            >
+                              {cfg.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

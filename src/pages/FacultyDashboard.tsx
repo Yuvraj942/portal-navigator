@@ -3,28 +3,35 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const SCRIPTS = [
-  { roll: "230501", subject: "CS3001", date: "2025-12-10", status: "pending" },
-  { roll: "230512", subject: "CS3002", date: "2025-12-11", status: "pending" },
-  { roll: "230523", subject: "CS3003", date: "2025-12-10", status: "graded" },
-  { roll: "230534", subject: "CS3001", date: "2025-12-12", status: "pending" },
-  { roll: "230545", subject: "CS3004", date: "2025-12-11", status: "graded" },
-  { roll: "230547", subject: "CS3002", date: "2025-12-12", status: "pending" },
-  { roll: "230558", subject: "CS3005", date: "2025-12-10", status: "graded" },
-  { roll: "230569", subject: "CS3003", date: "2025-12-11", status: "pending" },
+  { roll: "230501", subject: "CS3001", date: "2025-12-10", status: "pending" as const, grievance: false },
+  { roll: "230512", subject: "CS3002", date: "2025-12-11", status: "pending" as const, grievance: false },
+  { roll: "230523", subject: "CS3003", date: "2025-12-10", status: "graded" as const, grievance: false },
+  { roll: "230534", subject: "CS3001", date: "2025-12-12", status: "pending" as const, grievance: false },
+  { roll: "230545", subject: "CS3004", date: "2025-12-11", status: "graded" as const, grievance: true },
+  { roll: "230547", subject: "CS3002", date: "2025-12-12", status: "pending" as const, grievance: true },
+  { roll: "230558", subject: "CS3005", date: "2025-12-10", status: "graded" as const, grievance: false },
+  { roll: "230569", subject: "CS3003", date: "2025-12-11", status: "pending" as const, grievance: false },
 ];
+
+type FilterTab = "all" | "grievances";
 
 const FacultyDashboard = () => {
   const [publishResults, setPublishResults] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const navigate = useNavigate();
 
   const assigned = SCRIPTS.length;
   const graded = SCRIPTS.filter((s) => s.status === "graded").length;
-  const pending = assigned - graded;
+  const ungraded = SCRIPTS.filter((s) => s.status === "pending" && !s.grievance).length;
+  const grievanceCount = SCRIPTS.filter((s) => s.grievance).length;
+
+  const filteredScripts =
+    activeFilter === "grievances"
+      ? SCRIPTS.filter((s) => s.grievance)
+      : SCRIPTS;
 
   const handleEvaluate = (roll: string, subject: string) => {
-    toast.info(`Opening evaluation for Roll ${roll} — ${subject}...`, {
-      duration: 2000,
-    });
+    navigate(`/evaluation/${subject.toLowerCase()}?role=faculty`);
   };
 
   const handleBulkUpload = () => {
@@ -49,7 +56,8 @@ const FacultyDashboard = () => {
   const stats = [
     { label: "Scripts Assigned", value: assigned, color: "text-primary", icon: "📋" },
     { label: "Graded", value: graded, color: "text-success", icon: "✅" },
-    { label: "Pending", value: pending, color: "text-warning", icon: "⏳" },
+    { label: "Ungraded", value: ungraded, color: "text-warning", icon: "⏳" },
+    { label: "Grievances", value: grievanceCount, color: "text-destructive", icon: "⚠️" },
   ];
 
   return (
@@ -70,7 +78,7 @@ const FacultyDashboard = () => {
 
       <main className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {stats.map((stat) => (
             <div
               key={stat.label}
@@ -89,10 +97,32 @@ const FacultyDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-6">
           {/* Left: Grading Table */}
           <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
                 Grading Queue
               </h2>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setActiveFilter("all")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    activeFilter === "all"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setActiveFilter("grievances")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    activeFilter === "grievances"
+                      ? "bg-destructive text-destructive-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Grievances ({grievanceCount})
+                </button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -107,13 +137,16 @@ const FacultyDashboard = () => {
                     <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Submission Date
                     </th>
+                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Flags
+                    </th>
                     <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                       Action
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {SCRIPTS.map((s, i) => (
+                  {filteredScripts.map((s, i) => (
                     <tr
                       key={`${s.roll}-${s.subject}`}
                       className={`border-b border-border last:border-0 ${
@@ -125,6 +158,15 @@ const FacultyDashboard = () => {
                       </td>
                       <td className="px-5 py-3 font-mono text-primary">{s.subject}</td>
                       <td className="px-5 py-3 text-muted-foreground">{s.date}</td>
+                      <td className="px-5 py-3 text-center">
+                        {s.grievance ? (
+                          <span className="inline-flex items-center rounded-md bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
+                            Grievance
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="px-5 py-3 text-right">
                         {s.status === "pending" ? (
                           <button
@@ -132,6 +174,13 @@ const FacultyDashboard = () => {
                             className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
                           >
                             Evaluate
+                          </button>
+                        ) : s.grievance ? (
+                          <button
+                            onClick={() => handleEvaluate(s.roll, s.subject)}
+                            className="rounded-md bg-warning px-3 py-1.5 text-xs font-semibold text-warning-foreground hover:bg-warning/90 transition-colors"
+                          >
+                            Review
                           </button>
                         ) : (
                           <span className="inline-flex items-center rounded-md bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
