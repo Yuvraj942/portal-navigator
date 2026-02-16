@@ -168,19 +168,19 @@ const FacultyDashboard = () => {
                         )}
                       </td>
                       <td className="px-5 py-3 text-right">
-                        {s.status === "pending" ? (
-                          <button
-                            onClick={() => handleEvaluate(s.roll, s.subject)}
-                            className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-                          >
-                            Evaluate
-                          </button>
-                        ) : s.grievance ? (
+                        {s.grievance ? (
                           <button
                             onClick={() => handleEvaluate(s.roll, s.subject)}
                             className="rounded-md bg-warning px-3 py-1.5 text-xs font-semibold text-warning-foreground hover:bg-warning/90 transition-colors"
                           >
                             Review
+                          </button>
+                        ) : s.status === "pending" ? (
+                          <button
+                            onClick={() => handleEvaluate(s.roll, s.subject)}
+                            className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                          >
+                            Evaluate
                           </button>
                         ) : (
                           <span className="inline-flex items-center rounded-md bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
