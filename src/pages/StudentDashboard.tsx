@@ -6,12 +6,12 @@ const SUBJECTS = [
   { code: "CS3001", name: "Data Structures & Algorithms", marks: 87, status: "graded" as const },
   { code: "CS3002", name: "Operating Systems", marks: 72, status: "review" as const },
   { code: "CS3003", name: "Database Management Systems", marks: 91, status: "updated" as const },
-  { code: "CS3004", name: "Computer Networks", marks: 68, status: "graded" as const },
-  { code: "CS3005", name: "Software Engineering", marks: 79, status: "graded" as const },
+  { code: "CS3004", name: "Computer Networks", marks: 68, status: "not-submitted" as const },
+  { code: "CS3005", name: "Software Engineering", marks: 79, status: "not-submitted" as const },
   { code: "MA2001", name: "Discrete Mathematics", marks: 85, status: "graded" as const },
 ];
 
-type Status = "graded" | "review" | "updated";
+type Status = "graded" | "review" | "updated" | "not-submitted";
 
 const statusConfig: Record<Status, { label: string; className: string }> = {
   graded: {
@@ -25,6 +25,10 @@ const statusConfig: Record<Status, { label: string; className: string }> = {
   updated: {
     label: "Updated",
     className: "bg-primary/10 text-primary",
+  },
+  "not-submitted": {
+    label: "Not Submitted",
+    className: "bg-muted/50 text-muted-foreground",
   },
 };
 
