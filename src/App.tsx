@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import StudentDashboard from "./pages/StudentDashboard";
 import FacultyDashboard from "./pages/FacultyDashboard";
+import EvaluationViewer from "./pages/EvaluationViewer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
           <Route path="/" element={<Login />} />
           <Route path="/dashboard/student" element={<StudentDashboard />} />
           <Route path="/dashboard/faculty" element={<FacultyDashboard />} />
+          <Route path="/evaluation/:subjectId" element={<EvaluationViewer />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
