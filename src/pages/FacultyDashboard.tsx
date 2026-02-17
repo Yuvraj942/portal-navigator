@@ -30,8 +30,9 @@ const FacultyDashboard = () => {
       ? SCRIPTS.filter((s) => s.grievance)
       : SCRIPTS;
 
-  const handleEvaluate = (roll: string, subject: string) => {
-    navigate(`/evaluation/${subject.toLowerCase()}?role=faculty`);
+  const handleEvaluate = (roll: string, subject: string, scriptStatus: string, hasGrievance: boolean) => {
+    const mode = hasGrievance ? "grievance" : scriptStatus === "pending" ? "fresh" : "graded";
+    navigate(`/evaluation/${subject.toLowerCase()}?role=faculty&mode=${mode}&roll=${roll}`);
   };
 
   const handleBulkUpload = () => {
@@ -54,10 +55,10 @@ const FacultyDashboard = () => {
   };
 
   const stats = [
-    { label: "Scripts Assigned", value: assigned, color: "text-primary", icon: "📋" },
-    { label: "Graded", value: graded, color: "text-success", icon: "✅" },
-    { label: "Ungraded", value: ungraded, color: "text-warning", icon: "⏳" },
-    { label: "Grievances", value: grievanceCount, color: "text-destructive", icon: "⚠️" },
+    { label: "Scripts Assigned", value: assigned, color: "text-primary" },
+    { label: "Graded", value: graded, color: "text-success" },
+    { label: "Ungraded", value: ungraded, color: "text-warning" },
+    { label: "Grievances", value: grievanceCount, color: "text-destructive" },
   ];
 
   return (
@@ -84,10 +85,7 @@ const FacultyDashboard = () => {
               key={stat.label}
               className="rounded-xl border border-border bg-card p-5 flex items-center justify-between"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-lg">{stat.icon}</span>
-                <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
-              </div>
+              <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
               <span className={`text-2xl font-bold font-mono ${stat.color}`}>{stat.value}</span>
             </div>
           ))}
@@ -170,22 +168,25 @@ const FacultyDashboard = () => {
                       <td className="px-5 py-3 text-right">
                         {s.grievance ? (
                           <button
-                            onClick={() => handleEvaluate(s.roll, s.subject)}
+                            onClick={() => handleEvaluate(s.roll, s.subject, s.status, s.grievance)}
                             className="rounded-md bg-warning px-3 py-1.5 text-xs font-semibold text-warning-foreground hover:bg-warning/90 transition-colors"
                           >
                             Review
                           </button>
                         ) : s.status === "pending" ? (
                           <button
-                            onClick={() => handleEvaluate(s.roll, s.subject)}
+                            onClick={() => handleEvaluate(s.roll, s.subject, s.status, s.grievance)}
                             className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
                           >
                             Evaluate
                           </button>
                         ) : (
-                          <span className="inline-flex items-center rounded-md bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
-                            Graded
-                          </span>
+                          <button
+                            onClick={() => handleEvaluate(s.roll, s.subject, s.status, s.grievance)}
+                            className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                          >
+                            View
+                          </button>
                         )}
                       </td>
                     </tr>

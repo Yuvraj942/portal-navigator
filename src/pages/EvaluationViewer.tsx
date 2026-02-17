@@ -9,12 +9,20 @@ import {
 
 const PAGES = [1, 2, 3, 4, 5, 6, 7, 8];
 
-const MARKS_DATA = [
+const GRADED_MARKS = [
   { q: "Q1", parts: { a: "2", b: "3", c: "5", d: "4", e: "-" } },
   { q: "Q2", parts: { a: "4", b: "-", c: "3", d: "2", e: "5" } },
   { q: "Q3", parts: { a: "5", b: "4", c: "-", d: "3", e: "2" } },
   { q: "Q4", parts: { a: "-", b: "2", c: "4", d: "5", e: "3" } },
   { q: "Q5", parts: { a: "3", b: "5", c: "2", d: "-", e: "4" } },
+];
+
+const EMPTY_MARKS = [
+  { q: "Q1", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
+  { q: "Q2", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
+  { q: "Q3", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
+  { q: "Q4", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
+  { q: "Q5", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
 ];
 
 const SUBJECT_MAP: Record<string, string> = {
@@ -26,31 +34,52 @@ const SUBJECT_MAP: Record<string, string> = {
   ma2001: "Discrete Mathematics",
 };
 
+type MarksRow = { q: string; parts: Record<string, string> };
+
 const EvaluationViewer = () => {
   const { subjectId } = useParams();
   const [searchParams] = useSearchParams();
   const role = searchParams.get("role") || "student";
+  const mode = searchParams.get("mode") || "graded"; // fresh | graded | grievance
+  const rollNo = searchParams.get("roll") || "230547";
   const navigate = useNavigate();
 
+  const isFaculty = role === "faculty";
+  const isFresh = mode === "fresh";
+  const hasGrievance = mode === "grievance";
+
+  const initialMarks = isFresh ? EMPTY_MARKS : GRADED_MARKS;
+
   const [activePage, setActivePage] = useState(1);
-  const [grievanceText, setGrievanceText] = useState("");
-  const [mockGrievance] = useState(
-    "I believe Q3 part (c) was marked incorrectly. My approach using dynamic programming is valid as per the textbook reference on page 247."
+  const [marks, setMarks] = useState<MarksRow[]>(
+    initialMarks.map((r) => ({ ...r, parts: { ...r.parts } }))
   );
+  const [grievanceText, setGrievanceText] = useState("");
+  const mockGrievance =
+    "I believe Q3 part (c) was marked incorrectly. My approach using dynamic programming is valid as per the textbook reference on page 247.";
 
   const subjectName = SUBJECT_MAP[subjectId?.toLowerCase() || ""] || "Unknown Subject";
   const subjectCode = subjectId?.toUpperCase() || "N/A";
 
   const handleBack = () => {
-    if (role === "faculty") {
-      navigate("/dashboard/faculty");
-    } else {
-      navigate("/dashboard/student");
-    }
+    navigate(isFaculty ? "/dashboard/faculty" : "/dashboard/student");
   };
 
   const handlePrev = () => setActivePage((p) => Math.max(1, p - 1));
   const handleNext = () => setActivePage((p) => Math.min(PAGES.length, p + 1));
+
+  const handleMarkChange = (qIndex: number, part: string, value: string) => {
+    const sanitized = value.replace(/[^0-9-]/g, "");
+    setMarks((prev) => {
+      const updated = prev.map((r) => ({ ...r, parts: { ...r.parts } }));
+      updated[qIndex].parts[part] = sanitized;
+      return updated;
+    });
+  };
+
+  const handleSaveMarks = () => {
+    toast.success("Marks saved successfully.", { duration: 2500 });
+  };
 
   const handleSubmitGrievance = () => {
     if (!grievanceText.trim()) {
@@ -69,15 +98,17 @@ const EvaluationViewer = () => {
     toast.info("Grievance rejected. Student notified.", { duration: 2500 });
   };
 
-  const totalMarks = MARKS_DATA.reduce((sum, row) => {
+  const totalMarks = marks.reduce((sum, row) => {
     return (
       sum +
       Object.values(row.parts).reduce(
-        (s, v) => s + (v === "-" ? 0 : parseInt(v)),
+        (s, v) => s + (v === "-" || v === "" ? 0 : parseInt(v) || 0),
         0
       )
     );
   }, 0);
+
+  const modeLabel = isFresh ? "New Evaluation" : hasGrievance ? "Grievance Review" : "Graded";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -99,9 +130,16 @@ const EvaluationViewer = () => {
             </p>
           </div>
         </div>
-        <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
-          {role === "faculty" ? "Faculty Mode" : "Student Mode"}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${
+            isFresh ? "bg-warning/10 text-warning" : hasGrievance ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"
+          }`}>
+            {modeLabel}
+          </span>
+          <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
+            {isFaculty ? "Faculty Mode" : "Student Mode"}
+          </span>
+        </div>
       </header>
 
       {/* Main Content */}
@@ -130,7 +168,6 @@ const EvaluationViewer = () => {
 
               {/* Sheet Area */}
               <div className="flex-1 relative flex items-center justify-center p-6">
-                {/* Previous Chevron */}
                 <button
                   onClick={handlePrev}
                   disabled={activePage === 1}
@@ -141,7 +178,6 @@ const EvaluationViewer = () => {
                   </svg>
                 </button>
 
-                {/* Paper Placeholder */}
                 <div className="w-full max-w-md aspect-[3/4] rounded-lg border border-border bg-background/60 flex flex-col items-center justify-center shadow-xl shadow-black/20">
                   <div className="space-y-4 text-center px-8">
                     <div className="w-16 h-16 mx-auto rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -157,7 +193,7 @@ const EvaluationViewer = () => {
                         Scanned exam paper for {subjectCode}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Student: Aryan (230547)
+                        Student: Roll {rollNo}
                       </p>
                     </div>
                     <div className="pt-4 space-y-2">
@@ -172,7 +208,6 @@ const EvaluationViewer = () => {
                   </div>
                 </div>
 
-                {/* Next Chevron */}
                 <button
                   onClick={handleNext}
                   disabled={activePage === PAGES.length}
@@ -184,7 +219,6 @@ const EvaluationViewer = () => {
                 </button>
               </div>
 
-              {/* Page Indicator */}
               <div className="border-t border-border px-4 py-2 text-center shrink-0">
                 <span className="text-xs text-muted-foreground font-mono">
                   Page {activePage} of {PAGES.length}
@@ -201,8 +235,7 @@ const EvaluationViewer = () => {
               {/* Student Info Header */}
               <div className="border-b border-border px-5 py-4 shrink-0">
                 <h2 className="text-sm font-semibold text-foreground">
-                  Student: <span className="text-primary">Aryan</span>{" "}
-                  <span className="font-mono text-muted-foreground">(230547)</span>
+                  Roll No: <span className="font-mono text-primary">{rollNo}</span>
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Subject: <span className="font-mono text-primary">{subjectCode}</span> — {subjectName}
@@ -211,9 +244,19 @@ const EvaluationViewer = () => {
 
               {/* Marks Grid */}
               <div className="px-5 py-4 space-y-3 shrink-0">
-                <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                  Marks Breakdown
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
+                    Marks Breakdown
+                  </h3>
+                  {isFaculty && (
+                    <button
+                      onClick={handleSaveMarks}
+                      className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                    >
+                      Save Marks
+                    </button>
+                  )}
+                </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
                     <thead>
@@ -235,9 +278,9 @@ const EvaluationViewer = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {MARKS_DATA.map((row, i) => {
+                      {marks.map((row, i) => {
                         const rowTotal = Object.values(row.parts).reduce(
-                          (s, v) => s + (v === "-" ? 0 : parseInt(v)),
+                          (s, v) => s + (v === "-" || v === "" ? 0 : parseInt(v) || 0),
                           0
                         );
                         return (
@@ -251,13 +294,22 @@ const EvaluationViewer = () => {
                             {(["a", "b", "c", "d", "e"] as const).map((col) => (
                               <td
                                 key={col}
-                                className={`px-3 py-2 text-center font-mono border-r border-border last:border-r-0 ${
-                                  row.parts[col] === "-"
-                                    ? "text-muted-foreground/50"
-                                    : "text-foreground"
-                                }`}
+                                className="px-1 py-1 text-center border-r border-border last:border-r-0"
                               >
-                                {row.parts[col]}
+                                {isFaculty ? (
+                                  <input
+                                    type="text"
+                                    value={row.parts[col]}
+                                    onChange={(e) => handleMarkChange(i, col, e.target.value)}
+                                    className="w-full text-center font-mono text-sm bg-background border border-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-primary/50 text-foreground"
+                                  />
+                                ) : (
+                                  <span className={`font-mono ${
+                                    row.parts[col] === "-" ? "text-muted-foreground/50" : "text-foreground"
+                                  }`}>
+                                    {row.parts[col]}
+                                  </span>
+                                )}
                               </td>
                             ))}
                             <td className="px-3 py-2 text-center font-mono font-semibold text-primary">
@@ -287,12 +339,12 @@ const EvaluationViewer = () => {
               {/* Divider */}
               <div className="border-t border-border mx-5" />
 
-              {/* Grievance Section */}
+              {/* Grievance Section — only shown when relevant */}
               <div className="px-5 py-4 flex-1 flex flex-col">
                 {role === "student" ? (
                   <div className="space-y-3 flex flex-col flex-1">
                     <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                      Grievance / Re-check Request
+                      Recheck Request
                     </h3>
                     <textarea
                       value={grievanceText}
@@ -307,7 +359,7 @@ const EvaluationViewer = () => {
                       Submit for Re-evaluation
                     </button>
                   </div>
-                ) : (
+                ) : hasGrievance ? (
                   <div className="space-y-4 flex flex-col flex-1">
                     <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
                       Student Grievance
@@ -334,6 +386,12 @@ const EvaluationViewer = () => {
                         Reject Grievance
                       </button>
                     </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center flex-1">
+                    <p className="text-sm text-muted-foreground">
+                      {isFresh ? "Evaluate the answer sheet and save marks above." : "No grievance filed for this answer sheet."}
+                    </p>
                   </div>
                 )}
               </div>
