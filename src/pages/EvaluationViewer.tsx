@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -6,41 +6,22 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import {
+  getScript,
+  saveMarks,
+  submitGrievance,
+  acceptGrievance,
+  rejectGrievance,
+} from "@/services/evaluationService";
+import { MarksRow, SUBJECT_MAP, createEmptyMarks, computeTotal } from "@/types/evaluation";
 
 const PAGES = [1, 2, 3, 4, 5, 6, 7, 8];
-
-const GRADED_MARKS = [
-  { q: "Q1", parts: { a: "2", b: "3", c: "5", d: "4", e: "-" } },
-  { q: "Q2", parts: { a: "4", b: "-", c: "3", d: "2", e: "5" } },
-  { q: "Q3", parts: { a: "5", b: "4", c: "-", d: "3", e: "2" } },
-  { q: "Q4", parts: { a: "-", b: "2", c: "4", d: "5", e: "3" } },
-  { q: "Q5", parts: { a: "3", b: "5", c: "2", d: "-", e: "4" } },
-];
-
-const EMPTY_MARKS = [
-  { q: "Q1", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
-  { q: "Q2", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
-  { q: "Q3", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
-  { q: "Q4", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
-  { q: "Q5", parts: { a: "0", b: "0", c: "0", d: "0", e: "0" } },
-];
-
-const SUBJECT_MAP: Record<string, string> = {
-  cs3001: "Data Structures & Algorithms",
-  cs3002: "Operating Systems",
-  cs3003: "Database Management Systems",
-  cs3004: "Computer Networks",
-  cs3005: "Software Engineering",
-  ma2001: "Discrete Mathematics",
-};
-
-type MarksRow = { q: string; parts: Record<string, string> };
 
 const EvaluationViewer = () => {
   const { subjectId } = useParams();
   const [searchParams] = useSearchParams();
   const role = searchParams.get("role") || "student";
-  const mode = searchParams.get("mode") || "graded"; // fresh | graded | grievance
+  const mode = searchParams.get("mode") || "graded";
   const rollNo = searchParams.get("roll") || "230547";
   const navigate = useNavigate();
 
@@ -48,18 +29,23 @@ const EvaluationViewer = () => {
   const isFresh = mode === "fresh";
   const hasGrievance = mode === "grievance";
 
-  const initialMarks = isFresh ? EMPTY_MARKS : GRADED_MARKS;
+  const subjectCode = subjectId?.toUpperCase() || "N/A";
+  const subjectName = SUBJECT_MAP[subjectId?.toLowerCase() || ""] || "Unknown Subject";
 
   const [activePage, setActivePage] = useState(1);
-  const [marks, setMarks] = useState<MarksRow[]>(
-    initialMarks.map((r) => ({ ...r, parts: { ...r.parts } }))
-  );
+  const [marks, setMarks] = useState<MarksRow[]>(createEmptyMarks());
   const [grievanceText, setGrievanceText] = useState("");
-  const mockGrievance =
-    "I believe Q3 part (c) was marked incorrectly. My approach using dynamic programming is valid as per the textbook reference on page 247.";
+  const [scriptGrievance, setScriptGrievance] = useState<{ text: string; date: string } | null>(null);
 
-  const subjectName = SUBJECT_MAP[subjectId?.toLowerCase() || ""] || "Unknown Subject";
-  const subjectCode = subjectId?.toUpperCase() || "N/A";
+  useEffect(() => {
+    const script = getScript(rollNo, subjectId || "");
+    if (script) {
+      setMarks(script.marks);
+      if (script.hasGrievance && script.grievanceText) {
+        setScriptGrievance({ text: script.grievanceText, date: script.grievanceDate || "" });
+      }
+    }
+  }, [rollNo, subjectId]);
 
   const handleBack = () => {
     navigate(isFaculty ? "/dashboard/faculty" : "/dashboard/student");
@@ -78,6 +64,7 @@ const EvaluationViewer = () => {
   };
 
   const handleSaveMarks = () => {
+    saveMarks(rollNo, subjectId || "", marks);
     toast.success("Marks saved successfully.", { duration: 2500 });
   };
 
@@ -86,28 +73,24 @@ const EvaluationViewer = () => {
       toast.error("Please enter your grievance details.");
       return;
     }
+    submitGrievance(rollNo, subjectId || "", grievanceText);
     toast.success("Grievance submitted for re-evaluation.", { duration: 2500 });
     setGrievanceText("");
   };
 
   const handleAcceptGrievance = () => {
+    acceptGrievance(rollNo, subjectId || "", marks);
     toast.success("Grievance accepted. Marks updated.", { duration: 2500 });
+    setScriptGrievance(null);
   };
 
   const handleRejectGrievance = () => {
+    rejectGrievance(rollNo, subjectId || "");
     toast.info("Grievance rejected. Student notified.", { duration: 2500 });
+    setScriptGrievance(null);
   };
 
-  const totalMarks = marks.reduce((sum, row) => {
-    return (
-      sum +
-      Object.values(row.parts).reduce(
-        (s, v) => s + (v === "-" || v === "" ? 0 : parseInt(v) || 0),
-        0
-      )
-    );
-  }, 0);
-
+  const totalMarks = computeTotal(marks);
   const modeLabel = isFresh ? "New Evaluation" : hasGrievance ? "Grievance Review" : "Graded";
 
   return (
@@ -122,9 +105,7 @@ const EvaluationViewer = () => {
             ← Back
           </button>
           <div>
-            <h1 className="text-sm font-semibold text-foreground">
-              Evaluation Viewer
-            </h1>
+            <h1 className="text-sm font-semibold text-foreground">Evaluation Viewer</h1>
             <p className="text-xs text-muted-foreground">
               <span className="font-mono text-primary">{subjectCode}</span> — {subjectName}
             </p>
@@ -145,10 +126,9 @@ const EvaluationViewer = () => {
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Left Panel: Answer Sheet Viewer */}
+          {/* Left: Answer Sheet */}
           <ResizablePanel defaultSize={50} minSize={30}>
             <div className="h-full flex flex-col bg-card/50">
-              {/* Page Navigation Bar */}
               <div className="border-b border-border px-4 py-2 flex items-center gap-1 overflow-x-auto shrink-0">
                 <span className="text-xs text-muted-foreground mr-2 shrink-0">Pages:</span>
                 {PAGES.map((p) => (
@@ -166,7 +146,6 @@ const EvaluationViewer = () => {
                 ))}
               </div>
 
-              {/* Sheet Area */}
               <div className="flex-1 relative flex items-center justify-center p-6">
                 <button
                   onClick={handlePrev}
@@ -186,15 +165,9 @@ const EvaluationViewer = () => {
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        Answer Sheet — Page {activePage}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Scanned exam paper for {subjectCode}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Student: Roll {rollNo}
-                      </p>
+                      <p className="text-sm font-semibold text-foreground">Answer Sheet — Page {activePage}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Scanned exam paper for {subjectCode}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Student: Roll {rollNo}</p>
                     </div>
                     <div className="pt-4 space-y-2">
                       {[...Array(6)].map((_, i) => (
@@ -220,19 +193,16 @@ const EvaluationViewer = () => {
               </div>
 
               <div className="border-t border-border px-4 py-2 text-center shrink-0">
-                <span className="text-xs text-muted-foreground font-mono">
-                  Page {activePage} of {PAGES.length}
-                </span>
+                <span className="text-xs text-muted-foreground font-mono">Page {activePage} of {PAGES.length}</span>
               </div>
             </div>
           </ResizablePanel>
 
           <ResizableHandle withHandle />
 
-          {/* Right Panel: Scoring & Grievance */}
+          {/* Right: Scoring & Grievance */}
           <ResizablePanel defaultSize={50} minSize={30}>
             <div className="h-full flex flex-col overflow-y-auto">
-              {/* Student Info Header */}
               <div className="border-b border-border px-5 py-4 shrink-0">
                 <h2 className="text-sm font-semibold text-foreground">
                   Roll No: <span className="font-mono text-primary">{rollNo}</span>
@@ -245,9 +215,7 @@ const EvaluationViewer = () => {
               {/* Marks Grid */}
               <div className="px-5 py-4 space-y-3 shrink-0">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                    Marks Breakdown
-                  </h3>
+                  <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Marks Breakdown</h3>
                   {isFaculty && (
                     <button
                       onClick={handleSaveMarks}
@@ -261,41 +229,23 @@ const EvaluationViewer = () => {
                   <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
                     <thead>
                       <tr className="bg-card">
-                        <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-r border-border">
-                          Q
-                        </th>
+                        <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-r border-border">Q</th>
                         {["a", "b", "c", "d", "e"].map((col) => (
-                          <th
-                            key={col}
-                            className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground border-b border-r border-border last:border-r-0 uppercase"
-                          >
-                            {col}
-                          </th>
+                          <th key={col} className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground border-b border-r border-border last:border-r-0 uppercase">{col}</th>
                         ))}
-                        <th className="px-3 py-2 text-center text-xs font-semibold text-primary border-b border-border">
-                          Total
-                        </th>
+                        <th className="px-3 py-2 text-center text-xs font-semibold text-primary border-b border-border">Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {marks.map((row, i) => {
                         const rowTotal = Object.values(row.parts).reduce(
-                          (s, v) => s + (v === "-" || v === "" ? 0 : parseInt(v) || 0),
-                          0
+                          (s, v) => s + (v === "-" || v === "" ? 0 : parseInt(v) || 0), 0
                         );
                         return (
-                          <tr
-                            key={row.q}
-                            className={i % 2 === 1 ? "bg-muted/20" : ""}
-                          >
-                            <td className="px-3 py-2 font-mono font-semibold text-foreground border-r border-border">
-                              {row.q}
-                            </td>
+                          <tr key={row.q} className={i % 2 === 1 ? "bg-muted/20" : ""}>
+                            <td className="px-3 py-2 font-mono font-semibold text-foreground border-r border-border">{row.q}</td>
                             {(["a", "b", "c", "d", "e"] as const).map((col) => (
-                              <td
-                                key={col}
-                                className="px-1 py-1 text-center border-r border-border last:border-r-0"
-                              >
+                              <td key={col} className="px-1 py-1 text-center border-r border-border last:border-r-0">
                                 {isFaculty ? (
                                   <input
                                     type="text"
@@ -304,48 +254,34 @@ const EvaluationViewer = () => {
                                     className="w-full text-center font-mono text-sm bg-background border border-border rounded px-1 py-1 focus:outline-none focus:ring-1 focus:ring-primary/50 text-foreground"
                                   />
                                 ) : (
-                                  <span className={`font-mono ${
-                                    row.parts[col] === "-" ? "text-muted-foreground/50" : "text-foreground"
-                                  }`}>
+                                  <span className={`font-mono ${row.parts[col] === "-" ? "text-muted-foreground/50" : "text-foreground"}`}>
                                     {row.parts[col]}
                                   </span>
                                 )}
                               </td>
                             ))}
-                            <td className="px-3 py-2 text-center font-mono font-semibold text-primary">
-                              {rowTotal}
-                            </td>
+                            <td className="px-3 py-2 text-center font-mono font-semibold text-primary">{rowTotal}</td>
                           </tr>
                         );
                       })}
                     </tbody>
                     <tfoot>
                       <tr className="bg-card border-t border-border">
-                        <td
-                          colSpan={6}
-                          className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider border-r border-border"
-                        >
-                          Grand Total
-                        </td>
-                        <td className="px-3 py-2 text-center font-mono text-lg font-bold text-primary">
-                          {totalMarks}
-                        </td>
+                        <td colSpan={6} className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider border-r border-border">Grand Total</td>
+                        <td className="px-3 py-2 text-center font-mono text-lg font-bold text-primary">{totalMarks}</td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
               </div>
 
-              {/* Divider */}
               <div className="border-t border-border mx-5" />
 
-              {/* Grievance Section — only shown when relevant */}
+              {/* Grievance Section */}
               <div className="px-5 py-4 flex-1 flex flex-col">
                 {role === "student" ? (
                   <div className="space-y-3 flex flex-col flex-1">
-                    <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                      Recheck Request
-                    </h3>
+                    <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Recheck Request</h3>
                     <textarea
                       value={grievanceText}
                       onChange={(e) => setGrievanceText(e.target.value)}
@@ -359,18 +295,12 @@ const EvaluationViewer = () => {
                       Submit for Re-evaluation
                     </button>
                   </div>
-                ) : hasGrievance ? (
+                ) : hasGrievance && scriptGrievance ? (
                   <div className="space-y-4 flex flex-col flex-1">
-                    <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">
-                      Student Grievance
-                    </h3>
+                    <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider">Student Grievance</h3>
                     <div className="rounded-lg border border-border bg-background/50 p-4 flex-1">
-                      <p className="text-sm text-foreground leading-relaxed">
-                        {mockGrievance}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-3 font-mono">
-                        Submitted: 2025-12-15 14:32
-                      </p>
+                      <p className="text-sm text-foreground leading-relaxed">{scriptGrievance.text}</p>
+                      <p className="text-xs text-muted-foreground mt-3 font-mono">Submitted: {scriptGrievance.date}</p>
                     </div>
                     <div className="flex gap-3">
                       <button

@@ -1,17 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-
-const SUBJECTS = [
-  { code: "CS3001", name: "Data Structures & Algorithms", marks: 87, recheckStatus: "not-submitted" as const },
-  { code: "CS3002", name: "Operating Systems", marks: 72, recheckStatus: "under-review" as const },
-  { code: "CS3003", name: "Database Management Systems", marks: 91, recheckStatus: "updated" as const },
-  { code: "CS3004", name: "Computer Networks", marks: 68, recheckStatus: "unchanged" as const },
-  { code: "CS3005", name: "Software Engineering", marks: 79, recheckStatus: "not-submitted" as const },
-  { code: "MA2001", name: "Discrete Mathematics", marks: 85, recheckStatus: "not-submitted" as const },
-];
-
-type RecheckStatus = "not-submitted" | "under-review" | "updated" | "unchanged";
+import { getStudentResults, areResultsPublished } from "@/services/evaluationService";
+import { RecheckStatus, StudentResult } from "@/types/evaluation";
 
 const recheckConfig: Record<RecheckStatus, { label: string; className: string }> = {
   "not-submitted": {
@@ -32,20 +23,29 @@ const recheckConfig: Record<RecheckStatus, { label: string; className: string }>
   },
 };
 
-const StudentDashboard = () => {
-  const [selectedSubject, setSelectedSubject] = useState(SUBJECTS[0].code);
-  const navigate = useNavigate();
+const ROLL_NO = "230547";
 
-  const selected = SUBJECTS.find((s) => s.code === selectedSubject)!;
+const StudentDashboard = () => {
+  const navigate = useNavigate();
+  const [results, setResults] = useState<StudentResult[]>([]);
+  const [selectedCode, setSelectedCode] = useState("");
+  const published = areResultsPublished();
+
+  useEffect(() => {
+    const data = getStudentResults(ROLL_NO);
+    setResults(data);
+    if (data.length > 0) setSelectedCode(data[0].subjectCode);
+  }, []);
+
+  const selected = results.find((r) => r.subjectCode === selectedCode);
 
   const handleViewAnswerSheet = () => {
-    navigate(`/evaluation/${selected.code.toLowerCase()}?role=student`);
+    if (!selectedCode) return;
+    navigate(`/evaluation/${selectedCode.toLowerCase()}?role=student&roll=${ROLL_NO}`);
   };
 
   const handleAction = (action: string) => {
-    toast.info(`Loading ${action} for ${selected.name}...`, {
-      duration: 2000,
-    });
+    toast.info(`Loading ${action}...`, { duration: 2000 });
   };
 
   const handleLogout = () => {
@@ -56,12 +56,11 @@ const StudentDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-foreground">
             Welcome, Aryan{" "}
-            <span className="font-mono text-sm text-muted-foreground">(Roll: 230547)</span>
+            <span className="font-mono text-sm text-muted-foreground">(Roll: {ROLL_NO})</span>
           </h1>
         </div>
         <button
@@ -72,7 +71,6 @@ const StudentDashboard = () => {
         </button>
       </header>
 
-      {/* Main Content */}
       <main className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-6 max-w-6xl mx-auto">
           {/* Left: Resource Panel */}
@@ -87,13 +85,13 @@ const StudentDashboard = () => {
                   Select Subject
                 </label>
                 <select
-                  value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  value={selectedCode}
+                  onChange={(e) => setSelectedCode(e.target.value)}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-colors"
                 >
-                  {SUBJECTS.map((s) => (
-                    <option key={s.code} value={s.code}>
-                      {s.code} — {s.name}
+                  {results.map((r) => (
+                    <option key={r.subjectCode} value={r.subjectCode}>
+                      {r.subjectCode} — {r.subjectName}
                     </option>
                   ))}
                 </select>
@@ -101,14 +99,20 @@ const StudentDashboard = () => {
 
               <button
                 onClick={handleViewAnswerSheet}
-                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                disabled={!published && selected?.marks === null}
+                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 View Evaluated Answer Sheet
               </button>
 
+              {!published && (
+                <p className="text-xs text-warning">Results have not been published yet.</p>
+              )}
+
               <div className="pt-2 border-t border-border">
                 <p className="text-xs text-muted-foreground">
-                  Selected: <span className="font-mono text-primary">{selected.code}</span> — {selected.name}
+                  Selected: <span className="font-mono text-primary">{selectedCode}</span>
+                  {selected && ` — ${selected.subjectName}`}
                 </p>
               </div>
             </div>
@@ -141,21 +145,21 @@ const StudentDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {SUBJECTS.map((s, i) => {
-                      const cfg = recheckConfig[s.recheckStatus];
+                    {results.map((r, i) => {
+                      const cfg = recheckConfig[r.recheckStatus];
                       return (
                         <tr
-                          key={s.code}
+                          key={r.subjectCode}
                           className={`border-b border-border last:border-0 ${
                             i % 2 === 1 ? "bg-muted/30" : ""
                           }`}
                         >
                           <td className="px-5 py-3 font-mono text-sm font-medium text-primary">
-                            {s.code}
+                            {r.subjectCode}
                           </td>
-                          <td className="px-5 py-3 text-foreground">{s.name}</td>
+                          <td className="px-5 py-3 text-foreground">{r.subjectName}</td>
                           <td className="px-5 py-3 text-right font-mono font-semibold text-foreground">
-                            {s.marks}
+                            {published && r.marks !== null ? r.marks : "—"}
                           </td>
                           <td className="px-5 py-3 text-center">
                             <span
@@ -172,7 +176,6 @@ const StudentDashboard = () => {
               </div>
             </div>
 
-            {/* Download Buttons */}
             <div className="flex gap-3">
               <button
                 onClick={() => handleAction("Question Paper")}
