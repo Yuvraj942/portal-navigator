@@ -1,38 +1,33 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-
-const SCRIPTS = [
-  { roll: "230501", subject: "CS3001", date: "2025-12-10", status: "pending" as const, grievance: false },
-  { roll: "230512", subject: "CS3002", date: "2025-12-11", status: "pending" as const, grievance: false },
-  { roll: "230523", subject: "CS3003", date: "2025-12-10", status: "graded" as const, grievance: false },
-  { roll: "230534", subject: "CS3001", date: "2025-12-12", status: "pending" as const, grievance: false },
-  { roll: "230545", subject: "CS3004", date: "2025-12-11", status: "graded" as const, grievance: true },
-  { roll: "230547", subject: "CS3002", date: "2025-12-12", status: "pending" as const, grievance: true },
-  { roll: "230558", subject: "CS3005", date: "2025-12-10", status: "graded" as const, grievance: false },
-  { roll: "230569", subject: "CS3003", date: "2025-12-11", status: "pending" as const, grievance: false },
-];
+import {
+  getAllScripts,
+  areResultsPublished,
+  setResultsPublished,
+} from "@/services/evaluationService";
 
 type FilterTab = "all" | "grievances";
 
 const FacultyDashboard = () => {
-  const [publishResults, setPublishResults] = useState(false);
+  const [publishResults, setPublishResults] = useState(areResultsPublished());
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
   const navigate = useNavigate();
 
-  const assigned = SCRIPTS.length;
-  const graded = SCRIPTS.filter((s) => s.status === "graded").length;
-  const ungraded = SCRIPTS.filter((s) => s.status === "pending" && !s.grievance).length;
-  const grievanceCount = SCRIPTS.filter((s) => s.grievance).length;
+  const scripts = getAllScripts();
+  const assigned = scripts.length;
+  const graded = scripts.filter((s) => s.status === "graded").length;
+  const ungraded = scripts.filter((s) => s.status === "pending").length;
+  const grievanceCount = scripts.filter((s) => s.hasGrievance).length;
 
   const filteredScripts =
     activeFilter === "grievances"
-      ? SCRIPTS.filter((s) => s.grievance)
-      : SCRIPTS;
+      ? scripts.filter((s) => s.hasGrievance)
+      : scripts;
 
-  const handleEvaluate = (roll: string, subject: string, scriptStatus: string, hasGrievance: boolean) => {
-    const mode = hasGrievance ? "grievance" : scriptStatus === "pending" ? "fresh" : "graded";
-    navigate(`/evaluation/${subject.toLowerCase()}?role=faculty&mode=${mode}&roll=${roll}`);
+  const handleEvaluate = (rollNo: string, subjectCode: string, status: string, hasGrievance: boolean) => {
+    const mode = hasGrievance ? "grievance" : status === "pending" ? "fresh" : "graded";
+    navigate(`/evaluation/${subjectCode.toLowerCase()}?role=faculty&mode=${mode}&roll=${rollNo}`);
   };
 
   const handleBulkUpload = () => {
@@ -46,10 +41,12 @@ const FacultyDashboard = () => {
   };
 
   const handlePublishToggle = () => {
-    setPublishResults(!publishResults);
+    const next = !publishResults;
+    setPublishResults(next);
+    setResultsPublished(next);
     toast.success(
-      !publishResults
-        ? "Results will be published to the Student Portal"
+      next
+        ? "Results published to the Student Portal"
         : "Results unpublished from the Student Portal"
     );
   };
@@ -63,7 +60,6 @@ const FacultyDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-foreground">Faculty Dashboard</h1>
@@ -78,7 +74,7 @@ const FacultyDashboard = () => {
       </header>
 
       <main className="p-6 max-w-7xl mx-auto space-y-6">
-        {/* Stats Row */}
+        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {stats.map((stat) => (
             <div
@@ -93,7 +89,7 @@ const FacultyDashboard = () => {
 
         {/* Main Grid */}
         <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-6">
-          {/* Left: Grading Table */}
+          {/* Grading Table */}
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">
@@ -126,38 +122,36 @@ const FacultyDashboard = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Roll No
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Subject
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Submission Date
-                    </th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Flags
-                    </th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Action
-                    </th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Roll No</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subject</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Submission Date</th>
+                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Flags</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wider">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredScripts.map((s, i) => (
                     <tr
-                      key={`${s.roll}-${s.subject}`}
+                      key={s.id}
                       className={`border-b border-border last:border-0 ${
                         i % 2 === 1 ? "bg-muted/30" : ""
                       }`}
                     >
-                      <td className="px-5 py-3 font-mono font-medium text-foreground">
-                        {s.roll}
-                      </td>
-                      <td className="px-5 py-3 font-mono text-primary">{s.subject}</td>
-                      <td className="px-5 py-3 text-muted-foreground">{s.date}</td>
+                      <td className="px-5 py-3 font-mono font-medium text-foreground">{s.rollNo}</td>
+                      <td className="px-5 py-3 font-mono text-primary">{s.subjectCode}</td>
+                      <td className="px-5 py-3 text-muted-foreground">{s.submissionDate}</td>
                       <td className="px-5 py-3 text-center">
-                        {s.grievance ? (
+                        <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ${
+                          s.status === "graded"
+                            ? "bg-success/10 text-success"
+                            : "bg-warning/10 text-warning"
+                        }`}>
+                          {s.status === "graded" ? "Graded" : "Pending"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        {s.hasGrievance ? (
                           <span className="inline-flex items-center rounded-md bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive">
                             Grievance
                           </span>
@@ -166,23 +160,23 @@ const FacultyDashboard = () => {
                         )}
                       </td>
                       <td className="px-5 py-3 text-right">
-                        {s.grievance ? (
+                        {s.hasGrievance ? (
                           <button
-                            onClick={() => handleEvaluate(s.roll, s.subject, s.status, s.grievance)}
+                            onClick={() => handleEvaluate(s.rollNo, s.subjectCode, s.status, s.hasGrievance)}
                             className="rounded-md bg-warning px-3 py-1.5 text-xs font-semibold text-warning-foreground hover:bg-warning/90 transition-colors"
                           >
                             Review
                           </button>
                         ) : s.status === "pending" ? (
                           <button
-                            onClick={() => handleEvaluate(s.roll, s.subject, s.status, s.grievance)}
+                            onClick={() => handleEvaluate(s.rollNo, s.subjectCode, s.status, s.hasGrievance)}
                             className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
                           >
                             Evaluate
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleEvaluate(s.roll, s.subject, s.status, s.grievance)}
+                            onClick={() => handleEvaluate(s.rollNo, s.subjectCode, s.status, s.hasGrievance)}
                             className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-semibold text-secondary-foreground hover:bg-secondary/80 transition-colors"
                           >
                             View
@@ -196,9 +190,8 @@ const FacultyDashboard = () => {
             </div>
           </div>
 
-          {/* Right: Control Sidebar */}
+          {/* Sidebar */}
           <div className="space-y-4">
-            {/* Key Management */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
               <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
                 Key Management
@@ -211,7 +204,6 @@ const FacultyDashboard = () => {
               </button>
             </div>
 
-            {/* System Control */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-4">
               <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
                 System Control
