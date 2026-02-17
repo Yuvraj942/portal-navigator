@@ -3,32 +3,32 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const SUBJECTS = [
-  { code: "CS3001", name: "Data Structures & Algorithms", marks: 87, status: "graded" as const },
-  { code: "CS3002", name: "Operating Systems", marks: 72, status: "review" as const },
-  { code: "CS3003", name: "Database Management Systems", marks: 91, status: "updated" as const },
-  { code: "CS3004", name: "Computer Networks", marks: 68, status: "not-submitted" as const },
-  { code: "CS3005", name: "Software Engineering", marks: 79, status: "not-submitted" as const },
-  { code: "MA2001", name: "Discrete Mathematics", marks: 85, status: "graded" as const },
+  { code: "CS3001", name: "Data Structures & Algorithms", marks: 87, recheckStatus: "not-submitted" as const },
+  { code: "CS3002", name: "Operating Systems", marks: 72, recheckStatus: "under-review" as const },
+  { code: "CS3003", name: "Database Management Systems", marks: 91, recheckStatus: "updated" as const },
+  { code: "CS3004", name: "Computer Networks", marks: 68, recheckStatus: "unchanged" as const },
+  { code: "CS3005", name: "Software Engineering", marks: 79, recheckStatus: "not-submitted" as const },
+  { code: "MA2001", name: "Discrete Mathematics", marks: 85, recheckStatus: "not-submitted" as const },
 ];
 
-type Status = "graded" | "review" | "updated" | "not-submitted";
+type RecheckStatus = "not-submitted" | "under-review" | "updated" | "unchanged";
 
-const statusConfig: Record<Status, { label: string; className: string }> = {
-  graded: {
-    label: "Graded",
-    className: "bg-success/10 text-success",
+const recheckConfig: Record<RecheckStatus, { label: string; className: string }> = {
+  "not-submitted": {
+    label: "Not Submitted",
+    className: "bg-muted/50 text-muted-foreground",
   },
-  review: {
-    label: "Review Pending",
+  "under-review": {
+    label: "Under Review",
     className: "bg-warning/10 text-warning",
   },
   updated: {
     label: "Updated",
     className: "bg-primary/10 text-primary",
   },
-  "not-submitted": {
-    label: "Not Submitted",
-    className: "bg-muted/50 text-muted-foreground",
+  unchanged: {
+    label: "Marks Unchanged",
+    className: "bg-destructive/10 text-destructive",
   },
 };
 
@@ -136,13 +136,13 @@ const StudentDashboard = () => {
                         Marks
                       </th>
                       <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Status
+                        Recheck Status
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {SUBJECTS.map((s, i) => {
-                      const cfg = statusConfig[s.status];
+                      const cfg = recheckConfig[s.recheckStatus];
                       return (
                         <tr
                           key={s.code}
